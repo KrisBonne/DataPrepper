@@ -1,0 +1,328 @@
+Option Explicit
+
+
+Public ActivecellAdress As String
+
+
+Sub DataPrepperLean()
+'shortcut ctrl+shift+i
+
+Dim LaatsteKolom As Long
+Dim LaatsteRij As Long
+Dim i As Long
+Dim Hoofding As Integer
+Dim HoofdingVraag As String
+Dim HoofdingAntwoord As String
+Dim AantalLegeCellen As String
+Dim DatetimeVraag As String
+Dim DateTimeAntwoord As String
+Dim ActivecellAdress As String
+    
+ActivecellAdress = ActiveCell.Address
+    
+
+Application.ScreenUpdating = False
+
+
+' unmerge, del format, unhide
+    ActiveSheet.Cells.UnMerge
+    Cells.ClearFormats
+    Columns.EntireColumn.Hidden = False
+    Rows.EntireRow.Hidden = False
+    
+ 
+' clean header away
+    HoofdingVraag = "Delete Header rows?"
+    HoofdingAntwoord = MsgBox(HoofdingVraag, vbQuestion + vbYesNo)
+       
+       If HoofdingAntwoord = vbYes Then
+        Hoofding = InputBox("Howmany rows to delete?")
+        Cells(1, 1).Activate
+            For i = 1 To Hoofding
+                 Rows(1).Delete
+            Next i
+       End If
+
+
+
+' trim de spaties weg ( ook >  1 tussenspaties)
+    Call TrimWholeSheet
+
+
+' delete lege rijen
+    Call DeleteLegeRij
+
+'delete lege kolommen
+
+    'Call DeleteEmptyHeaderOnlyColumns
+
+'format Data
+
+    With ActiveWorkbook.Styles("Normal").Font
+        .Name = "Tahoma"
+        .Size = 9
+        .Bold = False
+        .Italic = False
+        .Underline = xlUnderlineStyleNone
+        .Strikethrough = False
+        .ThemeColor = 2
+        .TintAndShade = 0
+        .ThemeFont = xlThemeFontNone
+ End With
+ 
+        
+'geef aantal lege cellen een kleurtje
+        Selection.Interior.ColorIndex = xlNone
+'
+'        If Selection.SpecialCells(xlCellTypeBlanks).Count > 0 Then
+        Selection.SpecialCells(xlCellTypeBlanks).Interior.Color = rgbCornsilk
+'        End If
+        
+
+'I didn't include auto-alignment, data errors are more visible this way
+        'ActiveSheet.Cells.VerticalAlignment = xlTop
+        'ActiveSheet.Cells.HorizontalAlignment = xlLeft
+
+            
+' format Hoofding
+        
+        Rows(1).Font.Bold = True
+        Rows(1).Interior.Color = rgbOliveDrab
+        Rows(1).Font.Size = 11
+        Rows(1).Font.Color = rgbSeashell
+            
+ 
+' adjust columns to text
+        Cells.Select
+        Selection.AutoFilter
+        Selection.ColumnWidth = 88.88
+        Cells.EntireRow.AutoFit
+        Cells.EntireColumn.AutoFit
+        
+        
+'CorrectDate function
+
+    DatetimeVraag = "Wil je omgezette datums in de geselecteerde kolom?"
+        DateTimeAntwoord = MsgBox(DatetimeVraag, vbQuestion + vbYesNo)
+       
+       If DateTimeAntwoord = vbYes Then Call CorrectDateTime
+
+
+' Select A1, zoom, ready to start analysing
+    Call SetZoom
+
+        
+        ActiveSheet.UsedRange
+        LaatsteRij = ActiveSheet.Cells.SpecialCells(xlCellTypeLastCell).Row
+        LaatsteKolom = ActiveSheet.Cells.SpecialCells(xlCellTypeLastCell).Column
+'        If Selection.SpecialCells(xlCellTypeBlanks).Count > 0 Then
+        AantalLegeCellen = Selection.SpecialCells(xlCellTypeBlanks).Count
+'        End If
+        
+               
+Application.ScreenUpdating = True
+UnHideSheets
+
+
+
+        'Application.Speech.Speak ("There are," & AantalLegeCellen & "blank cells, i've coloured them in for you, enjoy ")
+
+        MsgBox "Data is Clean :" & vbNewLine & vbNewLine & _
+        "Er werden " & Hoofding & " rijen Hoofding verwijderd" & vbNewLine & _
+        "LaatsteRij               : " & LaatsteRij & vbNewLine & _
+        "LaatsteKolom        : " & LaatsteKolom & vbNewLine & _
+        "AantalLegeCellen : " & AantalLegeCellen, Title:="DataPrepper"
+        
+    
+ 
+End Sub
+
+
+
+
+Sub DeleteLegeRij()
+
+ ActiveSheet.UsedRange.Select
+
+    Dim i As Long
+    
+        'Turn off calculation and screenupdating to speed up the macro.
+        With Application
+            .Calculation = xlCalculationManual
+            .ScreenUpdating = False
+            
+    'Work backwards because we are deleting rows.
+        For i = Selection.Rows.Count To 1 Step -1
+            If WorksheetFunction.CountA(Selection.Rows(i)) = 0 Then
+            Selection.Rows(i).EntireRow.Delete
+            End If
+        Next i
+            .Calculation = xlCalculationAutomatic
+            .ScreenUpdating = True
+    End With
+    
+End Sub
+
+
+
+Sub DeleteEmptyHeaderOnlyColumns()
+
+  Dim X As Long
+  Dim LastRow As Long
+  Dim LastCol As Long
+  
+      LastRow = Cells.Find("*", , xlValues, , xlRows, xlPrevious).Row
+      LastCol = Cells(1, Columns.Count).End(xlToLeft).Column
+  
+      Application.ScreenUpdating = False
+  
+      For X = LastCol To 1 Step -1
+       If Cells(1, X).Value = Join(Application.Transpose(Cells(1, X).Resize(LastRow)), "") Then Columns(X).Delete
+      Next
+       
+      Application.ScreenUpdating = True
+  
+  
+  End Sub
+
+
+
+Sub TrimWholeSheet()
+Dim rng As Range
+Dim Area As Range
+
+    If ActiveSheet.UsedRange.Cells.Count = 1 Then
+        Set rng = ActiveCell
+    Else
+        Set rng = ActiveSheet.UsedRange.SpecialCells(xlCellTypeConstants)
+    End If
+
+    For Each Area In rng.Areas
+        Area.Value = Evaluate("IF(ROW(" & Area.Address & "),CLEAN(TRIM(" & Area.Address & ")))")
+    Next Area
+
+End Sub
+
+
+
+Sub SetZoom()
+ 
+ 'shortcut is crt+shift+s
+  Dim ws As Worksheet
+
+    For Each ws In ActiveWorkbook.Worksheets
+        'ws.Select
+        ActiveWindow.Zoom = 80
+        Range("A1").Select
+    Next ws
+    
+End Sub
+
+
+
+Sub CorrectDateTime()
+'shortcut ctrl+shift+d
+'SOURCE : esteemed collegue Ben Ceyssens
+'past in de geselecteerde kolom de datumnotatie aan (vooral bij Cover rapporten nodig/handig)
+    
+    Dim i As Double
+    Dim DateTime As String
+    Dim A As Date
+    Dim B As Date
+    Dim Tijd As Date
+    Dim Datum As Date
+
+    i = 2
+    
+    Do Until Cells(i, 1).Value2 = 0
+    
+        If IsNumeric(Left(Trim(Cells(i, ActiveCell.Column).Value), 1)) = True And _
+           IsNumeric(Right(Trim(Cells(i, ActiveCell.Column).Value), 1)) = True Then
+           
+            DateTime = Trim(Cells(i, ActiveCell.Column).Value)
+            DateTime = Replace(DateTime, ".", "/")
+        
+            A = Left(DateTime, InStr(1, DateTime, " ") - 1)
+            B = Trim(Right(DateTime, Len(DateTime) - InStr(1, DateTime, " ")))
+            
+              If InStr(1, CStr(A), "/") >= 1 Then
+                Datum = A
+                Tijd = B
+                  Else
+                Datum = B
+                Tijd = A
+              End If
+        
+            Cells(i, ActiveCell.Column).Value2 = Format(Datum, "mm-dd-yyyy") & " " & Format(Tijd, "hh:mm")
+        End If
+        
+        i = i + 1
+    Loop
+    
+End Sub
+
+Sub UnHideSheets()
+
+Dim ws As Worksheet
+
+    For Each ws In Sheets
+        If ws.Visible = xlHidden Or xlSheetVeryHidden Then ws.Visible = True
+    Next
+
+
+End Sub
+
+Sub HighlightSpecificValue()
+
+'PURPOSE: Highlight all cells containing a specified values
+'SOURCE: www.TheSpreadsheetGuru.com
+
+Dim fnd As String, FirstFound As String
+Dim FoundCell As Range, rng As Range
+Dim myRange As Range, LastCell As Range
+
+'What value do you want to find?
+  fnd = InputBox("I want to hightlight cells containing...", "Highlight")
+  
+    'End Macro if Cancel Button is Clicked or no Text is Entered
+      If fnd = vbNullString Then Exit Sub
+
+Set myRange = ActiveSheet.UsedRange
+Set LastCell = myRange.Cells(myRange.Cells.Count)
+Set FoundCell = myRange.Find(what:=fnd, after:=LastCell)
+
+'Test to see if anything was found
+  If Not FoundCell Is Nothing Then
+    FirstFound = FoundCell.Address
+  Else
+    GoTo NothingFound
+  End If
+
+Set rng = FoundCell
+
+'Loop until cycled through all unique finds
+  Do Until FoundCell Is Nothing
+    'Find next cell with fnd value
+      Set FoundCell = myRange.FindNext(after:=FoundCell)
+    
+    'Add found cell to rng range variable
+      Set rng = Union(rng, FoundCell)
+    
+    'Test to see if cycled through to first found cell
+      If FoundCell.Address = FirstFound Then Exit Do
+      
+  Loop
+
+'Highlight Found cells yellow
+  rng.Interior.Color = RGB(255, 255, 0)
+
+'Report Out Message
+  MsgBox rng.Cells.Count & " cell(s) were found containing: " & fnd
+
+Exit Sub
+
+'Error Handler
+NothingFound:
+  MsgBox "No cells containing: " & fnd & " were found in this worksheet"
+
+End Sub
